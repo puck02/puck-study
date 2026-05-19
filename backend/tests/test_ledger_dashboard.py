@@ -263,10 +263,14 @@ def test_ledger_page_exposes_direction_toggle_for_pie_chart():
         ledger_page = client.get('/ledger')
         assert ledger_page.status_code == 200
         assert 'id="pieDirectionControl"' in ledger_page.text
+        assert 'class="direction-switch"' in ledger_page.text
         assert 'data-direction="expense"' in ledger_page.text
         assert 'data-direction="income"' in ledger_page.text
         assert '出账' in ledger_page.text
         assert '入账' in ledger_page.text
+        assert 'direction-switch-track' in ledger_page.text
+        assert 'direction-switch-knob' in ledger_page.text
+        assert 'direction-switch-icon' in ledger_page.text
 
         ledger_js = client.get('/ledger.js')
         assert ledger_js.status_code == 200
