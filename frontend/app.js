@@ -1,0 +1,45 @@
+const API = window.location.origin;
+const $ = s => document.querySelector(s);
+const themeButtons = [...document.querySelectorAll('[data-theme-choice]')];
+const eventList = $('#eventList'), reviewList = $('#reviewList'), eventCount = $('#eventCount'), totalMinutes = $('#totalMinutes');
+const refreshBtn = $('#refreshBtn'), planList = $('#planList'), heatmapEl = $('#heatmap');
+const patternList = $('#patternList'), weeklyReport = $('#weeklyReport'), monthStats = $('#monthStats');
+const subjectPie = $('#subjectPie'), subjectLegend = $('#subjectLegend');
+const SUBJECT_COLORS = { '数学':'#5e6ad2', '英语':'#10b981', '408':'#f59e0b', '政治':'#ef4444' };
+const DAILY_QUOTES = [
+  { text: '人的全部尊严就在于思想。', source: '帕斯卡《思想录》' },
+  { text: '世界上只有一种真正的英雄主义：认清生活真相后依然热爱生活。', source: '罗曼·罗兰《米开朗琪罗传》' },
+  { text: '不要温和地走进那个良夜。', source: '狄兰·托马斯《不要温和地走进那个良夜》' },
+  { text: '所有大人都曾经是孩子，只是很少有人记得。', source: '圣埃克苏佩里《小王子》' },
+  { text: '我们奋力前行，小舟逆水而上，不断被浪潮推回到过去。', source: '菲茨杰拉德《了不起的盖茨比》' },
+  { text: '重要的不是治愈，而是带着病痛活下去。', source: '加缪《西西弗神话》' },
+  { text: '希望是美好的，也许是人间至善，而美好的事物永不消逝。', source: '电影《肖申克的救赎》' }
+];
+let heatMode = 'recent';
+
+function resolveTheme(choice){ return choice==='light'||choice==='dark' ? choice : (matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'); }
+function renderDailyQuote(){ const idx=Math.floor(Date.now()/86400000)%DAILY_QUOTES.length; const q=DAILY_QUOTES[idx]; $('#dailyQuote').textContent=q.text; $('#dailyQuoteSource').textContent=`—— ${q.source}`; }
+function applyTheme(choice){ document.documentElement.dataset.theme=choice; document.documentElement.dataset.resolvedTheme=resolveTheme(choice); localStorage.setItem('studyflow-theme',choice); themeButtons.forEach(b=>b.classList.toggle('active',b.dataset.themeChoice===choice)); }
+function escapeHtml(v){ return String(v??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[ch])); }
+async function api(path, options={}){ const res=await fetch(`${API}${path}`,{headers:{'Content-Type':'application/json',...(options.headers||{})},...options}); if(!res.ok) throw new Error(`${path} ${res.status}`); return res.json(); }
+
+function renderEvents(items){ if(!items.length){eventList.className='list empty';eventList.textContent='暂无学习记录。';return;} eventList.className='list'; eventList.innerHTML=items.map(item=>`<article class="item"><div class="item-title">${escapeHtml(item.summary)}</div><div class="item-meta">${escapeHtml(item.subject==='专业课'?'408':item.subject)} · ${escapeHtml(item.category)} · ${item.duration_minutes||0} min · ${escapeHtml(item.created_at)}</div><div class="item-meta">${escapeHtml(item.raw_text)}</div><div>${(item.tags||[]).map(t=>`<span class="tag">#${escapeHtml(t==='专业课'?'408':t)}</span>`).join(' ')}</div></article>`).join(''); }
+function renderReviews(items){ if(!items.length){reviewList.className='list empty';reviewList.textContent='暂无错题。';return;} reviewList.className='list'; reviewList.innerHTML=items.map(i=>`<article class="item"><div class="item-title">${escapeHtml(i.question)}</div><div class="item-meta">状态：${escapeHtml(i.status)} · 下次复习：${escapeHtml(i.next_review_at||'未设置')}</div></article>`).join(''); }
+function renderPlan(plan){ if(!plan||!plan.tasks||!plan.tasks.length){planList.className='list empty';planList.textContent='暂无计划，选择保底/标准/加餐生成。';return;} planList.className='list'; planList.innerHTML=`<div class="item"><b>模式：${escapeHtml(plan.mode)}</b><div class="item-meta">完成情况由 QQ 进度自动同步，不需要在网页手动点完成。</div></div>`+plan.tasks.map(t=>`<article class="item"><div class="item-title">${escapeHtml(t.title.replace('专业课','408'))}</div><div class="item-meta">${escapeHtml(t.subject==='专业课'?'408':t.subject)} · ${t.target_minutes} min · ${escapeHtml(t.status)}</div></article>`).join(''); }
+function renderHeatmap(data){ const days=data.days||[]; if(!days.length){ heatmapEl.className='heatmap empty'; heatmapEl.textContent='暂无热力图数据。'; monthStats.innerHTML=''; return; } heatmapEl.className='heatmap month-heatmap'; const grouped=days.reduce((acc,d)=>{ const month=d.date.slice(0,7); (acc[month] ||= []).push(d); return acc; },{}); const weekday=dateStr=>new Date(`${dateStr}T00:00:00`).getDay(); heatmapEl.innerHTML=Object.entries(grouped).map(([month,items])=>{ const firstPad=weekday(items[0].date); const blanks=Array.from({length:firstPad},()=>'<span class="heat-cell heat-empty" aria-hidden="true"></span>').join(''); const cells=items.map(d=>`<span class="heat-cell" data-level="${d.level}" title="${d.date}: ${d.total_minutes} min"></span>`).join(''); const stat=(data.months||[]).find(m=>m.month===month)||{}; return `<section class="heat-month"><div class="heat-month-title"><span>${month}</span><small>${stat.total_minutes||0} min</small></div><div class="heat-month-grid">${blanks}${cells}</div></section>`; }).join(''); renderMonthStats(data.months||[]); }
+function renderMonthStats(months){ if(!months.length){ monthStats.innerHTML=''; return; } const latest=months[months.length-1]; monthStats.innerHTML=`<div class="stat-pill"><span>当前显示</span><b>${escapeHtml(months[0].month)} ~ ${escapeHtml(latest.month)}</b></div><div class="stat-pill"><span>${escapeHtml(latest.month)} 总学习</span><b>${latest.total_minutes||0} min</b></div><div class="stat-pill"><span>${escapeHtml(latest.month)} 日均</span><b>${latest.avg_minutes_per_day||0} min</b></div>`; }
+function renderPatterns(items){ if(!items.length){patternList.className='list empty';patternList.textContent='暂无模式卡。';return;} patternList.className='list'; patternList.innerHTML=items.map(p=>`<article class="item"><div class="item-title">${escapeHtml(p.title)}</div><div class="item-meta">${escapeHtml(p.subject==='专业课'?'408':p.subject)} · evidence ${p.evidence_count}</div></article>`).join(''); }
+function renderPie(data){ const items=data.items||[]; let start=0; const total=data.total_minutes||0; const stops=items.map(i=>{ const deg=total ? i.minutes/total*360 : 0; const s=`${SUBJECT_COLORS[i.subject]} ${start}deg ${start+deg}deg`; start+=deg; return s; }); subjectPie.style.background = total ? `conic-gradient(${stops.join(',')})` : 'rgba(140,149,159,0.16)'; subjectPie.innerHTML=`<div><b>${total}</b><span>min</span></div>`; subjectLegend.innerHTML=items.map(i=>`<div><span style="background:${SUBJECT_COLORS[i.subject]}"></span><b>${i.subject}</b><em>${i.minutes} min · ${i.percent}%</em></div>`).join(''); }
+function heatmapPath(){ const subject=encodeURIComponent($('#heatmapSubject').value); if(heatMode==='year') return `/api/stats/heatmap?mode=year&subject=${subject}`; if(heatMode==='range'){ const s=$('#startMonth').value, e=$('#endMonth').value; if(s&&e) return `/api/stats/heatmap?start_month=${s}&end_month=${e}&subject=${subject}`; } return `/api/stats/heatmap?subject=${subject}`; }
+
+async function loadDashboard(){ const [summary,events,reviews,plan,heat,patterns,latest,pie]=await Promise.all([api('/api/summary/today'),api('/api/events'),api('/api/review-items?status=active'),api('/api/plans/today'),api(heatmapPath()),api('/api/mistake-patterns'),api('/api/reports/weekly/latest'),api('/api/stats/today-subjects')]); eventCount.textContent=summary.event_count; totalMinutes.textContent=summary.total_minutes; renderEvents(events.items); renderReviews(reviews.items); renderPlan(plan); renderHeatmap(heat); renderPatterns(patterns.items); renderPie(pie); if(latest&&latest.summary) weeklyReport.textContent=latest.markdown||`${latest.summary}\n${JSON.stringify(latest.subject_breakdown,null,2)}\n下周策略：${latest.next_week_strategy}`; }
+
+refreshBtn.addEventListener('click', loadDashboard);
+document.querySelectorAll('[data-plan-mode]').forEach(b=>b.addEventListener('click',async()=>{await api('/api/plans/today/generate',{method:'POST',body:JSON.stringify({mode:b.dataset.planMode})}); await loadDashboard();}));
+document.querySelectorAll('[data-heat-mode]').forEach(b=>b.addEventListener('click',async()=>{ heatMode=b.dataset.heatMode; document.querySelectorAll('[data-heat-mode]').forEach(x=>x.classList.toggle('active',x===b)); await loadDashboard(); }));
+$('#rangeBtn').addEventListener('click',async()=>{ heatMode='range'; document.querySelectorAll('[data-heat-mode]').forEach(x=>x.classList.remove('active')); await loadDashboard(); });
+$('#heatmapSubject').addEventListener('change', loadDashboard);
+$('#patternBtn').addEventListener('click',async()=>{await api('/api/mistake-patterns/consolidate',{method:'POST'}); await loadDashboard();});
+$('#reportBtn').addEventListener('click',async()=>{const r=await api('/api/reports/weekly/generate',{method:'POST'}); weeklyReport.textContent=r.markdown||r.summary; await loadDashboard();});
+themeButtons.forEach(btn=>btn.addEventListener('click',()=>applyTheme(btn.dataset.themeChoice))); matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>{if((localStorage.getItem('studyflow-theme')||'auto')==='auto') applyTheme('auto');});
+applyTheme(localStorage.getItem('studyflow-theme')||'auto'); renderDailyQuote(); loadDashboard().catch(err=>{eventList.className='list empty';eventList.textContent=`加载失败：${err.message}`;});
