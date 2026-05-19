@@ -14,7 +14,11 @@ const ledgerList = $('#ledgerList'), ledgerTrend = $('#ledgerTrend'), ledgerPie 
 const monthlyCategoryRank = $('#monthlyCategoryRank'), monthlyOverview = $('#monthlyOverview');
 const pieRangeLabel = $('#pieRangeLabel'), pieCustomRange = $('#pieCustomRange'), pieStartDate = $('#pieStartDate'), pieEndDate = $('#pieEndDate'), pieApplyBtn = $('#pieApplyBtn');
 const pieRangeButtons = [...document.querySelectorAll('#pieRangeControl [data-range]')];
+const pieDirectionButtons = [...document.querySelectorAll('#pieDirectionControl [data-direction]')];
+const pieDirectionControl = $('#pieDirectionControl');
 let currentPieRange = 'today';
+let currentPieDirection = 'expense';
+let currentPieData = { expense: null, income: null };
 const LEDGER_COLORS = { '支出 · 餐饮':'#fb7185', '支出 · 交通':'#38bdf8', '支出 · 购物':'#f59e0b', '支出 · 住房':'#8b5cf6', '支出 · 娱乐':'#10b981', '支出 · 医疗':'#ef4444', '支出 · 学习':'#5e6ad2', '支出 · 社交':'#ec4899', '收入 · 工资':'#22c55e', '收入 · 兼职':'#14b8a6', '收入 · 报销':'#84cc16', '收入 · 退款':'#06b6d4', '收入 · 转账':'#6366f1', '餐饮':'#fb7185', '交通':'#38bdf8', '购物':'#f59e0b', '住房':'#8b5cf6', '娱乐':'#10b981', '医疗':'#ef4444', '学习':'#5e6ad2', '社交':'#ec4899', '工资':'#22c55e', '兼职':'#14b8a6', '报销':'#84cc16', '退款':'#06b6d4', '转账':'#6366f1', '其他':'#94a3b8', '其他收入':'#94a3b8' };
 
 function resolveTheme(choice){ return choice==='light'||choice==='dark' ? choice : (matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'); }
@@ -38,20 +42,20 @@ function renderMonthSummary(data){ monthIncomeTotal.textContent=formatMoney(data
 function renderLedgerList(items){ if(!items.length){ ledgerList.className='list empty'; ledgerList.textContent='暂无记账记录。'; return; } ledgerList.className='list'; ledgerList.innerHTML=items.map(item=>`<article class="item"><div class="item-title">${escapeHtml(item.summary)}</div><div class="item-meta">${item.direction==='income'?'收入':'支出'} · ${escapeHtml(item.category)} · ${formatMoney(item.amount)} · ${escapeHtml(item.created_at)}</div><div class="item-meta">${escapeHtml(item.raw_text)}</div></article>`).join(''); }
 function renderLedgerTrend(days){ if(!days.length){ ledgerTrend.className='list empty'; ledgerTrend.textContent='暂无趋势数据。'; return; } const active=days.filter(d => d.expense_total || d.income_total).slice(-7).reverse(); const items=active.length ? active : days.slice(-7).reverse(); ledgerTrend.className='list'; ledgerTrend.innerHTML=items.map(d=>`<article class="item"><div class="item-title">${escapeHtml(d.date)}</div><div class="item-meta">收入 ${formatMoney(d.income_total)} · 支出 ${formatMoney(d.expense_total)} · 净额 ${formatMoney(d.net_total)}</div></article>`).join(''); }
 function updatePieRangeUI(){ pieRangeButtons.forEach(btn=>btn.classList.toggle('active', btn.dataset.range===currentPieRange)); pieCustomRange.classList.toggle('hidden', currentPieRange!=='custom'); }
+function updatePieDirectionUI(){
+  pieDirectionButtons.forEach(btn=>btn.classList.toggle('active', btn.dataset.direction===currentPieDirection));
+  if(pieDirectionControl) pieDirectionControl.dataset.direction = currentPieDirection;
+}
 function getPieQuery(){ if(currentPieRange==='custom'){ const start=pieStartDate.value; const end=pieEndDate.value; if(!start || !end) throw new Error('请先选择开始和结束日期'); return `range=custom&start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`; } return `range=${encodeURIComponent(currentPieRange)}`; }
-function mergeCategoryBreakdown(expense, income){
-  const items = [];
-  for (const item of expense.items || []) items.push({...item, category: `支出 · ${item.category}`, kind: 'expense'});
-  for (const item of income.items || []) items.push({...item, category: `收入 · ${item.category}`, kind: 'income'});
-  const total = Number(expense.total_amount || 0) + Number(income.total_amount || 0);
+function normalizePieBreakdown(data, direction){
+  const label = direction === 'income' ? '入账' : '出账';
   return {
-    range: expense.range || income.range,
-    label: expense.label || income.label,
-    total_amount: total,
-    items: items.map(item => ({...item, percent: total ? Number((Number(item.amount || 0) / total * 100).toFixed(1)) : 0}))
+    ...data,
+    direction,
+    direction_label: label,
+    items: (data.items || []).map(item => ({...item, kind: direction}))
   };
 }
-
 function polarToCartesian(cx, cy, r, angle){
   const rad = (angle - 90) * Math.PI / 180;
   return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
@@ -95,10 +99,11 @@ function renderLedgerPie(data){
   } else {
     ledgerPie.innerHTML=`<div class="donut-center"><b>0</b><span>¥</span></div>`;
   }
-  pieRangeLabel.textContent = data.label ? `${data.label}收支分类` : '收支分类';
+  const label = data.direction_label || (data.direction === 'income' ? '入账' : '出账');
+  pieRangeLabel.textContent = data.label ? `${data.label}${label}分类` : `${label}分类`;
   ledgerLegend.innerHTML=items.length
     ? items.map(i=>`<div><span style="background:${LEDGER_COLORS[i.category] || '#94a3b8'}"></span><b>${escapeHtml(i.category)}</b><em>${formatMoney(i.amount)} · ${i.percent}%</em></div>`).join('')
-    : `<div class="empty">${escapeHtml(data.label || '当前范围')}还没有收支分类数据。</div>`;
+    : `<div class="empty">${escapeHtml(data.label || '当前范围')}还没有${escapeHtml(label)}分类数据。</div>`;
 }
 function renderMonthlyCategoryRank(data){
   const items = data.items || [];
@@ -125,11 +130,12 @@ async function loadLedger(){
     api('/api/ledger/stats/monthly-categories?direction=expense'),
     api('/api/ledger/stats/monthly-overview?months=6')
   ]);
-  const pie = mergeCategoryBreakdown(expensePie, incomePie);
+  currentPieData = { expense: expensePie, income: incomePie };
+  const activePie = normalizePieBreakdown(currentPieData[currentPieDirection] || expensePie, currentPieDirection);
   renderLedgerSummary(summary);
   renderMonthSummary(monthSummary);
   renderLedgerList(records.items);
-  renderLedgerPie(pie);
+  renderLedgerPie(activePie);
   renderLedgerTrend(days.days);
   renderMonthlyCategoryRank(monthCategories);
   renderMonthlyOverview(monthOverview);
@@ -147,8 +153,25 @@ async function handlePieRangeChange(nextRange){
   }
 }
 
+async function handlePieDirectionChange(nextDirection){
+  currentPieDirection = nextDirection === 'income' ? 'income' : 'expense';
+  updatePieDirectionUI();
+  const cached = currentPieData[currentPieDirection];
+  if(cached){
+    renderLedgerPie(normalizePieBreakdown(cached, currentPieDirection));
+    return;
+  }
+  try {
+    await loadLedger();
+  } catch (err) {
+    pieRangeLabel.textContent = '方向切换失败';
+    ledgerLegend.innerHTML = `<div class="empty">${escapeHtml(err.message)}</div>`;
+  }
+}
+
 $('#ledgerRefreshBtn').addEventListener('click', loadLedger);
 pieRangeButtons.forEach(btn=>btn.addEventListener('click', ()=>handlePieRangeChange(btn.dataset.range)));
+pieDirectionButtons.forEach(btn=>btn.addEventListener('click', ()=>handlePieDirectionChange(btn.dataset.direction)));
 pieApplyBtn.addEventListener('click', async ()=>{
   try {
     await loadLedger();
@@ -158,4 +181,4 @@ pieApplyBtn.addEventListener('click', async ()=>{
   }
 });
 themeButtons.forEach(btn=>btn.addEventListener('click',()=>applyTheme(btn.dataset.themeChoice))); matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>{if((localStorage.getItem('studyflow-theme')||'auto')==='auto') applyTheme('auto');});
-applyTheme(localStorage.getItem('studyflow-theme')||'auto'); updatePieRangeUI(); loadLedger().catch(err=>{ledgerList.className='list empty';ledgerList.textContent=`加载失败：${err.message}`;});
+applyTheme(localStorage.getItem('studyflow-theme')||'auto'); updatePieRangeUI(); updatePieDirectionUI(); loadLedger().catch(err=>{ledgerList.className='list empty';ledgerList.textContent=`加载失败：${err.message}`;});

@@ -257,6 +257,26 @@ def test_ledger_monthly_trend_and_clean_route():
         os.unlink(path)
 
 
+def test_ledger_page_exposes_direction_toggle_for_pie_chart():
+    client, path = make_client()
+    try:
+        ledger_page = client.get('/ledger')
+        assert ledger_page.status_code == 200
+        assert 'id="pieDirectionControl"' in ledger_page.text
+        assert 'data-direction="expense"' in ledger_page.text
+        assert 'data-direction="income"' in ledger_page.text
+        assert '出账' in ledger_page.text
+        assert '入账' in ledger_page.text
+
+        ledger_js = client.get('/ledger.js')
+        assert ledger_js.status_code == 200
+        assert 'currentPieDirection' in ledger_js.text
+        assert 'renderLedgerPie(activePie)' in ledger_js.text
+        assert 'mergeCategoryBreakdown' not in ledger_js.text
+    finally:
+        os.unlink(path)
+
+
 def test_ledger_ingest_ignores_non_bookkeeping_chat():
     client, path = make_client()
     try:
