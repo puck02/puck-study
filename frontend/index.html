@@ -3,44 +3,86 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>StudyFlow · 11408 考研学习驾驶舱</title>
+  <title>StudyFlow · 极简学习看板</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Noto+Serif+SC:wght@400;500;600&family=Just+Me+Again+Down+Here&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./style.css" />
+  <style>
+    @font-face {
+      font-family: 'BaiLuQiaoLi';
+      src: url('./assets/fonts/bailuqiaolishouxieti.ttf') format('truetype');
+      font-display: swap;
+    }
+  </style>
 </head>
 <body>
-  <div class="app-shell">
-    <header class="topbar">
-      <div><p class="eyebrow">11408 study cockpit</p><h1>StudyFlow</h1></div>
-      <div class="topbar-actions">
-        <a class="ghost nav-link" href="/ledger.html">前往账本</a>
-        <div class="theme-control" aria-label="主题切换">
-          <button data-theme-choice="auto">Auto</button><button data-theme-choice="light">Light</button><button data-theme-choice="dark">Dark</button>
+  <div class="app-shell figma-shell">
+    <main class="figma-board">
+      <section class="figma-stage">
+        <div class="figma-bg"></div>
+        <div class="figma-layout">
+          <section class="left-column">
+            <section class="quote-block">
+              <p class="board-kicker">study planner</p>
+              <h1 id="dailyQuote">不要温和地走进那个良夜</h1>
+              <p id="dailyQuoteSource" class="quote-source handwriting-source">—— 狄兰·托马斯《不要温和地走进那个良夜》</p>
+            </section>
+
+            <section class="summary-section" aria-label="今日学习统计">
+              <div class="summary-orb__pie-wrap">
+                <div id="subjectPie" class="subject-pie figma-pie"></div>
+                <div id="emptyStateText" class="empty-state-text">今天还没有学习记录</div>
+              </div>
+              <div class="summary-orb__stats" id="todaySummaryText">
+                <p>合计: 4h40min</p>
+                <p>数学: 2h</p>
+                <p>403: 1h</p>
+                <p>英语: 30min</p>
+                <p>政治: 10min</p>
+              </div>
+            </section>
+
+            <section class="segmented-wrap" aria-label="时间范围切换">
+              <div class="segmented-control figma-segmented">
+                <button class="active" data-heat-mode="today">今日</button>
+                <button data-heat-mode="week">本周</button>
+                <button data-heat-mode="month">本月</button>
+                <button data-heat-mode="custom">自定义</button>
+              </div>
+            </section>
+
+            <section class="font-probe" aria-label="字体对照验证">
+              <p class="font-probe__label">font probe</p>
+              <div class="font-probe__grid">
+                <div class="font-probe__card">
+                  <p class="font-probe__title">BaiLuQiaoLi</p>
+                  <p class="font-probe__sample font-probe__sample--bailu">不要温和地走进那个良夜 今日 本周 本月 自定义 外刊一篇 李林讲尖高数第一章</p>
+                </div>
+                <div class="font-probe__card">
+                  <p class="font-probe__title">System Fallback</p>
+                  <p class="font-probe__sample font-probe__sample--fallback">不要温和地走进那个良夜 今日 本周 本月 自定义 外刊一篇 李林讲尖高数第一章</p>
+                </div>
+              </div>
+            </section>
+          </section>
+
+          <section class="right-column">
+            <section class="countdown-card" aria-label="考研倒计时">
+              <div class="countdown-note">Last 211 Day!</div>
+              <div class="countdown-value"><span id="countdownDays">211</span></div>
+              <p class="countdown-subtitle" hidden>距 2027 考研初试</p>
+            </section>
+
+            <section class="task-note" aria-label="今日任务">
+              <div class="task-note__pin task-note__pin--a"></div>
+              <div class="task-note__pin task-note__pin--b"></div>
+              <p class="task-note__label">today list</p>
+              <div id="planList" class="task-list figma-task-list empty">暂无计划。</div>
+            </section>
+          </section>
         </div>
-      </div>
-    </header>
-    <main>
-      <section class="hero-card">
-        <div><p class="eyebrow">Daily Thought</p><h2 id="dailyQuote">人的全部尊严就在于思想。</h2><p id="dailyQuoteSource" class="quote-source">—— 帕斯卡《思想录》</p><p class="hero-copy">专注数学、英语、408、政治：计划无需手动打卡，热力图看坚持，饼图看今日投入，周报每周日 22:00 自动生成。</p></div>
-        <div class="metric-grid"><div class="metric-card"><span>今日学习记录</span><strong id="eventCount">0</strong></div><div class="metric-card"><span>学习分钟</span><strong id="totalMinutes">0</strong></div></div>
       </section>
-
-      <section class="grid two-col">
-        <article class="panel"><div class="panel-head"><div><p class="eyebrow">今日计划</p><h3>只展示，不手动打卡</h3></div><span class="badge">QQ Sync</span></div><p class="hint">实际进度通过 QQ 告诉我，我会同步到记录与统计里。</p><div class="button-row"><button class="ghost" data-plan-mode="minimal">保底</button><button class="ghost" data-plan-mode="standard">标准</button><button class="ghost" data-plan-mode="extra">加餐</button></div><div id="planList" class="list empty">暂无计划。</div></article>
-        <article class="panel"><div class="panel-head"><div><p class="eyebrow">今日学习时间</p><h3>按科目分布</h3></div><span class="badge">Pie</span></div><div class="pie-wrap"><div id="subjectPie" class="subject-pie"></div><div id="subjectLegend" class="pie-legend"></div></div></article>
-      </section>
-
-      <section class="grid two-col">
-        <article class="panel"><div class="panel-head"><div><p class="eyebrow">复盘队列</p><h3>待整理错题</h3></div><span class="badge">Review</span></div><div id="reviewList" class="list empty">暂无错题。</div></article>
-        <article class="panel"><div class="panel-head"><div><p class="eyebrow">Mistake Patterns</p><h3>错因模式</h3></div><button id="patternBtn" class="ghost">合并模式</button></div><div id="patternList" class="list empty">暂无模式卡。</div></article>
-      </section>
-
-      <section class="panel"><div class="panel-head"><div><p class="eyebrow">Heatmap</p><h3>GitHub-style 学习热力图</h3></div><select id="heatmapSubject"><option value="all">全部</option><option value="数学">数学</option><option value="英语">英语</option><option value="408">408</option><option value="政治">政治</option></select></div>
-        <div class="heat-controls"><div class="heat-mode-group"><button class="ghost active" data-heat-mode="recent">近 5 个月</button><button class="ghost" data-heat-mode="year">全年</button></div><div class="month-range"><label>从<input id="startMonth" type="month"></label><label>到<input id="endMonth" type="month"></label><button id="rangeBtn" class="ghost">查看</button></div></div>
-        <div id="monthStats" class="month-stats"></div><div id="heatmap" class="heatmap"></div><div class="legend"><span data-level="0"></span>0 min <span data-level="1"></span>1-30 min <span data-level="2"></span>30-90 min <span data-level="3"></span>90-180 min <span data-level="4"></span>180+ min</div></section>
-
-      <section class="grid two-col"><article class="panel"><div class="panel-head"><div><p class="eyebrow">Weekly Report</p><h3>周报趋势</h3></div><button id="reportBtn" class="ghost">立即生成</button></div><pre id="weeklyReport" class="report">暂无周报。</pre></article><article class="panel"><div class="panel-head"><div><p class="eyebrow">Timeline</p><h3>最近学习记录</h3></div><button id="refreshBtn" class="ghost">刷新</button></div><div id="eventList" class="list empty">正在加载...</div></article></section>
     </main>
   </div>
   <script src="./app.js"></script>
